@@ -44,7 +44,7 @@ Tired of cluttered "Downloads" or "Desktop" folders? Sortify automates the clean
 
 1.  Clone the repository and navigate into the project directory:
     ```bash
-    git clone https://github.com/abdulrahman20242/File-Organizer_v2.1.git
+    git clone https://github.com/abdulrahman20242/File-Organizer_v2.2.git
     cd File-Organizer_v2.1
     ```
 
@@ -128,3 +128,4 @@ This project includes a comprehensive test suite to ensure the core logic is wor
 *   `categories.json`: Default and user-customizable file type categories.
 *   `requirements.txt`: Main dependencies required to run the application.
 *   `requirements-dev.txt`: Extra dependencies for development and testing.
+
