@@ -9,10 +9,10 @@ from PySide6.QtWidgets import (
     QApplication, QMainWindow, QWidget, QVBoxLayout, QHBoxLayout, QFormLayout, QGroupBox,
     QLabel, QLineEdit, QPushButton, QComboBox, QCheckBox, QProgressBar,
     QTextEdit, QFileDialog, QMessageBox, QTabWidget, QTableWidget, QTableWidgetItem,
-    QDialog, QListWidget, QListWidgetItem, QInputDialog, QMenu
+    QDialog, QListWidget, QListWidgetItem, QInputDialog, QMenu, QHeaderView, QFrame
 )
-from PySide6.QtCore import QThread, Signal, Slot, Qt
-from PySide6.QtGui import QColor, QAction, QKeySequence, QActionGroup
+from PySide6.QtCore import QThread, Signal, Slot, Qt, QSize
+from PySide6.QtGui import QColor, QAction, QKeySequence, QActionGroup, QFont, QIcon
 
 import qtawesome as qta
 import file_organizer
@@ -20,6 +20,142 @@ import file_organizer
 BASE_DIR = Path(__file__).parent
 SETTINGS_FILE = BASE_DIR / "settings.json"
 PROFILES_FILE = BASE_DIR / "profiles.json"
+
+# --- Modern Stylesheet ---
+MODERN_STYLESHEET = """
+QMainWindow {
+    background-color: #1e293b;
+    color: #e2e8f0;
+}
+QWidget {
+    font-family: 'Segoe UI', 'Roboto', sans-serif;
+    font-size: 14px;
+    color: #e2e8f0;
+}
+QGroupBox {
+    background-color: #334155;
+    border: 1px solid #475569;
+    border-radius: 10px;
+    margin-top: 24px;
+    padding-top: 15px;
+    font-weight: bold;
+}
+QGroupBox::title {
+    subcontrol-origin: margin;
+    subcontrol-position: top left;
+    padding: 0 10px;
+    background-color: #334155; 
+    border-radius: 5px;
+    color: #38bdf8; /* Cyan title */
+}
+QLineEdit {
+    background-color: #0f172a;
+    border: 1px solid #475569;
+    border-radius: 6px;
+    padding: 8px;
+    color: #f8fafc;
+    selection-background-color: #38bdf8;
+}
+QLineEdit:focus {
+    border: 1px solid #38bdf8;
+}
+QComboBox {
+    background-color: #0f172a;
+    border: 1px solid #475569;
+    border-radius: 6px;
+    padding: 6px;
+    min-width: 6em;
+}
+QComboBox::drop-down {
+    subcontrol-origin: padding;
+    subcontrol-position: top right;
+    width: 20px;
+    border-left-width: 0px;
+    border-top-right-radius: 6px;
+    border-bottom-right-radius: 6px;
+}
+QPushButton {
+    background-color: #475569;
+    color: white;
+    border-radius: 6px;
+    padding: 8px 16px;
+    font-weight: bold;
+    border: none;
+}
+QPushButton:hover {
+    background-color: #64748b;
+}
+QPushButton:pressed {
+    background-color: #334155;
+}
+/* Primary Action Button (Run) */
+QPushButton#btn_run {
+    background-color: #10b981; /* Emerald Green */
+    font-size: 15px;
+}
+QPushButton#btn_run:hover {
+    background-color: #059669;
+}
+/* Cancel/Destructive Button */
+QPushButton#btn_cancel {
+    background-color: #ef4444; /* Red */
+}
+QPushButton#btn_cancel:hover {
+    background-color: #dc2626;
+}
+QTabWidget::pane {
+    border: 1px solid #475569;
+    border-radius: 6px;
+    background-color: #1e293b;
+}
+QTabBar::tab {
+    background: #334155;
+    color: #94a3b8;
+    padding: 10px 20px;
+    margin-right: 2px;
+    border-top-left-radius: 6px;
+    border-top-right-radius: 6px;
+}
+QTabBar::tab:selected {
+    background: #38bdf8;
+    color: #0f172a;
+    font-weight: bold;
+}
+QTableWidget {
+    background-color: #0f172a;
+    gridline-color: #334155;
+    border-radius: 6px;
+    border: 1px solid #475569;
+}
+QHeaderView::section {
+    background-color: #334155;
+    padding: 6px;
+    border: none;
+    color: #e2e8f0;
+    font-weight: bold;
+}
+QProgressBar {
+    border: 1px solid #475569;
+    border-radius: 6px;
+    text-align: center;
+    background-color: #0f172a;
+}
+QProgressBar::chunk {
+    background-color: #38bdf8;
+    border-radius: 5px;
+}
+QScrollBar:vertical {
+    border: none;
+    background: #0f172a;
+    width: 10px;
+    border-radius: 5px;
+}
+QScrollBar::handle:vertical {
+    background: #475569;
+    min-height: 20px;
+    border-radius: 5px;
+}
+"""
 
 class Translator:
     def __init__(self, lang="en"):
@@ -93,11 +229,15 @@ class OrganizerWorker(QThread):
                                     while f.tell() > 0 and f.read(1) != b'\n':
                                         f.seek(-2, os.SEEK_CUR)
                                     last_line = f.readline().decode()
-                                    dest_path = last_line.strip().split('|')[-1]
+                                    parts = last_line.strip().split('|')
+                                    if len(parts) >= 3:
+                                        dest_path = parts[-1]
                                 else:
                                     f.seek(0)
                                     last_line = f.readline().decode()
-                                    dest_path = last_line.strip().split('|')[-1]
+                                    parts = last_line.strip().split('|')
+                                    if len(parts) >= 3:
+                                        dest_path = parts[-1]
                     except Exception:
                         dest_path = "..."
                 
@@ -140,7 +280,8 @@ class CategoryEditorDialog(QDialog):
         super().__init__(parent)
         self.tr = parent.tr
         self.setWindowTitle(self.tr.t("manage_categories"))
-        self.setMinimumSize(600, 400)
+        self.setMinimumSize(700, 500)
+        self.setStyleSheet(parent.styleSheet()) # Inherit modern style
         self.categories_data = {k: list(v) for k, v in file_organizer.load_categories().items()}
         
         layout = QHBoxLayout(self)
@@ -181,7 +322,8 @@ class CategoryEditorDialog(QDialog):
         
         main_v_layout = QVBoxLayout()
         main_v_layout.addLayout(layout)
-        self.btn_save = QPushButton(qta.icon('fa5s.save'), self.tr.t("save_and_close"))
+        self.btn_save = QPushButton(qta.icon('fa5s.save', color='white'), self.tr.t("save_and_close"))
+        self.btn_save.setStyleSheet("background-color: #10b981;") 
         self.btn_save.clicked.connect(self.save_and_accept)
         main_v_layout.addWidget(self.btn_save)
         self.setLayout(main_v_layout)
@@ -267,6 +409,7 @@ class PathLineEdit(QLineEdit):
         super().__init__(parent)
         self.setDragEnabled(True)
         self.setAcceptDrops(True)
+        self.setPlaceholderText("C:/Example/Folder")
     
     def dragEnterEvent(self, event):
         if event.mimeData().hasUrls():
@@ -283,6 +426,7 @@ class ManageProfilesDialog(QDialog):
         self.tr = parent.tr
         self.profiles = profiles
         self.setWindowTitle(self.tr.t("manage_profiles_title"))
+        self.setStyleSheet(parent.styleSheet())
         
         layout = QVBoxLayout(self)
         self.profile_list = QListWidget()
@@ -291,6 +435,7 @@ class ManageProfilesDialog(QDialog):
         
         btn_layout = QHBoxLayout()
         remove_btn = QPushButton(self.tr.t("remove"))
+        remove_btn.setObjectName("btn_cancel") # Red button
         remove_btn.clicked.connect(self.remove_profile)
         btn_layout.addStretch()
         btn_layout.addWidget(remove_btn)
@@ -316,11 +461,14 @@ class FileOrganizerGUI(QMainWindow):
     
     def __init__(self):
         super().__init__()
+        # Apply the modern stylesheet globally
+        QApplication.instance().setStyleSheet(MODERN_STYLESHEET)
+        
         self.tr = Translator("en")
         self.organizer_worker = None
         self.undo_worker = None
         self.profiles = {}
-        self.current_theme = "light"
+        self.current_theme = "modern" # Fixed modern theme
         self.load_profiles()
         self._setup_combo_boxes()
         self._create_actions()
@@ -364,39 +512,51 @@ class FileOrganizerGUI(QMainWindow):
             combo.setCurrentIndex(index)
 
     def _create_actions(self):
-        self.run_action = QAction(qta.icon('fa5s.play', color='#2e7d32'), "", self)
+        self.run_action = QAction(qta.icon('fa5s.play', color='#10b981'), "", self)
         self.run_action.setShortcut(QKeySequence("Ctrl+R"))
-        self.cancel_action = QAction(qta.icon('fa5s.stop-circle', color='#b71c1c'), "", self)
+        self.cancel_action = QAction(qta.icon('fa5s.stop-circle', color='#ef4444'), "", self)
         self.cancel_action.setEnabled(False)
-        self.open_dest_action = QAction(qta.icon('fa5s.folder-open'), "", self)
-        self.manage_cat_action = QAction(qta.icon('fa5s.cogs'), "", self)
-        self.undo_action = QAction(qta.icon('fa5s.undo'), "", self)
-        self.exit_action = QAction(qta.icon('fa5s.times-circle'), "", self)
+        self.open_dest_action = QAction(qta.icon('fa5s.folder-open', color='#38bdf8'), "", self)
+        self.manage_cat_action = QAction(qta.icon('fa5s.cogs', color='#e2e8f0'), "", self)
+        self.undo_action = QAction(qta.icon('fa5s.undo', color='#fbbf24'), "", self)
+        self.exit_action = QAction(qta.icon('fa5s.times-circle', color='#ef4444'), "", self)
         self.exit_action.setShortcut(QKeySequence("Ctrl+Q"))
-        self.save_profile_action = QAction(qta.icon('fa5s.save'), "", self)
-        self.manage_profiles_action = QAction(qta.icon('fa5s.tasks'), "", self)
-        self.schedule_action = QAction(qta.icon('fa5s.clock'), "", self)
+        self.save_profile_action = QAction(qta.icon('fa5s.save', color='#e2e8f0'), "", self)
+        self.manage_profiles_action = QAction(qta.icon('fa5s.tasks', color='#e2e8f0'), "", self)
+        self.schedule_action = QAction(qta.icon('fa5s.clock', color='#e2e8f0'), "", self)
 
     def _create_main_layout(self):
-        self.setGeometry(200, 200, 800, 700)
+        self.resize(900, 750)
         central_widget = QWidget()
         self.setCentralWidget(central_widget)
         main_layout = QVBoxLayout(central_widget)
+        main_layout.setSpacing(15)
+        main_layout.setContentsMargins(20, 20, 20, 20)
         
+        # --- Header ---
         top_layout = QHBoxLayout()
+        title_lbl = QLabel("📁 File Organizer Pro")
+        title_lbl.setStyleSheet("font-size: 20px; font-weight: bold; color: #38bdf8;")
+        top_layout.addWidget(title_lbl)
+        
+        top_layout.addStretch()
         self.lbl_lang = QLabel()
         self.cmb_lang = QComboBox()
         self.cmb_lang.addItems(list(self.tr.data.keys()))
+        self.cmb_lang.setFixedWidth(100)
         top_layout.addWidget(self.lbl_lang)
         top_layout.addWidget(self.cmb_lang)
-        top_layout.addStretch()
         main_layout.addLayout(top_layout)
         
+        # --- Paths Card ---
         paths_group = QGroupBox()
         main_layout.addWidget(paths_group)
         paths_layout = QFormLayout(paths_group)
+        paths_layout.setSpacing(12)
+        
         self.txt_source = PathLineEdit()
-        self.btn_browse_source = QPushButton(qta.icon('fa5s.search'), "")
+        self.btn_browse_source = QPushButton(qta.icon('fa5s.search', color='white'), "")
+        self.btn_browse_source.setFixedWidth(40)
         source_layout = QHBoxLayout()
         source_layout.addWidget(self.txt_source)
         source_layout.addWidget(self.btn_browse_source)
@@ -404,17 +564,24 @@ class FileOrganizerGUI(QMainWindow):
         paths_layout.addRow(self.lbl_source, source_layout)
         
         self.txt_dest = QLineEdit()
-        self.btn_browse_dest = QPushButton(qta.icon('fa5s.search'), "")
+        self.txt_dest.setPlaceholderText("Optional (Default: Inside source folder)")
+        self.btn_browse_dest = QPushButton(qta.icon('fa5s.search', color='white'), "")
+        self.btn_browse_dest.setFixedWidth(40)
         dest_layout = QHBoxLayout()
         dest_layout.addWidget(self.txt_dest)
         dest_layout.addWidget(self.btn_browse_dest)
         self.lbl_dest = QLabel()
         paths_layout.addRow(self.lbl_dest, dest_layout)
         
+        # --- Options Card ---
         options_group = QGroupBox()
         main_layout.addWidget(options_group)
-        options_layout = QHBoxLayout(options_group)
+        options_main_h = QHBoxLayout(options_group)
+        
+        # Left Side: Dropdowns
         form_layout = QFormLayout()
+        form_layout.setHorizontalSpacing(20)
+        form_layout.setVerticalSpacing(10)
         self.cmb_mode = QComboBox()
         self.lbl_mode = QLabel()
         form_layout.addRow(self.lbl_mode, self.cmb_mode)
@@ -424,28 +591,57 @@ class FileOrganizerGUI(QMainWindow):
         self.cmb_conflict = QComboBox()
         self.lbl_conflict = QLabel()
         form_layout.addRow(self.lbl_conflict, self.cmb_conflict)
-        options_layout.addLayout(form_layout)
+        options_main_h.addLayout(form_layout, stretch=2)
         
-        checks_layout = QVBoxLayout()
+        # Right Side: Checks & Big Buttons
+        right_options_v = QVBoxLayout()
         self.chk_recursive = QCheckBox()
         self.chk_dryrun = QCheckBox()
-        checks_layout.addWidget(self.chk_recursive)
-        checks_layout.addWidget(self.chk_dryrun)
-        options_layout.addLayout(checks_layout)
+        right_options_v.addWidget(self.chk_recursive)
+        right_options_v.addWidget(self.chk_dryrun)
+        right_options_v.addStretch()
         
+        # Action Buttons Area
+        actions_layout = QHBoxLayout()
+        self.btn_run_big = QPushButton(qta.icon('fa5s.play', color='white'), " RUN")
+        self.btn_run_big.setObjectName("btn_run") # Apply custom CSS ID
+        self.btn_run_big.setMinimumHeight(45)
+        self.btn_run_big.clicked.connect(self.run_organizer)
+        
+        self.btn_cancel_big = QPushButton(qta.icon('fa5s.stop', color='white'), "")
+        self.btn_cancel_big.setObjectName("btn_cancel")
+        self.btn_cancel_big.setMinimumHeight(45)
+        self.btn_cancel_big.setFixedWidth(50)
+        self.btn_cancel_big.clicked.connect(self.cancel_organizer)
+        self.btn_cancel_big.setEnabled(False)
+        
+        actions_layout.addWidget(self.btn_run_big, stretch=1)
+        actions_layout.addWidget(self.btn_cancel_big)
+        right_options_v.addLayout(actions_layout)
+        
+        options_main_h.addLayout(right_options_v, stretch=1)
+        
+        # --- Tabs ---
         self.tabs = QTabWidget()
         main_layout.addWidget(self.tabs)
+        
         self.log_view = QTextEdit()
         self.log_view.setReadOnly(True)
+        self.log_view.setStyleSheet("border: none; background-color: #0f172a; font-family: Consolas, monospace;")
+        
         self.table_view = QTableWidget()
         self.table_view.setColumnCount(3)
-        self.table_view.setAlternatingRowColors(True)
+        self.table_view.horizontalHeader().setSectionResizeMode(1, QHeaderView.Stretch)
+        self.table_view.setAlternatingRowColors(False) 
         self.table_view.setEditTriggers(QTableWidget.EditTrigger.NoEditTriggers)
         self.table_view.setContextMenuPolicy(Qt.CustomContextMenu)
         self.table_view.customContextMenuRequested.connect(self._create_table_context_menu)
-        self.tabs.addTab(self.log_view, qta.icon('fa5s.stream'), "")
-        self.tabs.addTab(self.table_view, qta.icon('fa5s.table'), "")
+        self.table_view.verticalHeader().setVisible(False)
         
+        self.tabs.addTab(self.log_view, qta.icon('fa5s.stream', color='#38bdf8'), "")
+        self.tabs.addTab(self.table_view, qta.icon('fa5s.table', color='#38bdf8'), "")
+        
+        # Logger setup
         logger = logging.getLogger("file_organizer")
         logger.setLevel(logging.INFO)
         if logger.hasHandlers():
@@ -454,6 +650,8 @@ class FileOrganizerGUI(QMainWindow):
 
     def _create_menu_bar(self):
         self.menu_bar = self.menuBar()
+        self.menu_bar.setStyleSheet("background-color: #334155; color: white;")
+        
         self.file_menu = self.menu_bar.addMenu("")
         self.file_menu.addAction(self.schedule_action)
         self.file_menu.addAction(self.open_dest_action)
@@ -465,33 +663,32 @@ class FileOrganizerGUI(QMainWindow):
         self.edit_menu.addSeparator()
         self.edit_menu.addAction(self.undo_action)
         
-        self.view_menu = self.menu_bar.addMenu("")
-        theme_menu = self.view_menu.addMenu(qta.icon('fa5s.palette'), "")
-        self.theme_group = QActionGroup(self)
-        self.light_theme_action = self.theme_group.addAction(QAction("", self, checkable=True))
-        self.dark_theme_action = self.theme_group.addAction(QAction("", self, checkable=True))
-        theme_menu.addAction(self.light_theme_action)
-        theme_menu.addAction(self.dark_theme_action)
+        # Remove Theme menu since we are enforcing modern look
+        self.view_menu = self.menu_bar.addMenu("") 
         
-        self.profiles_menu = self.menu_bar.addMenu(qta.icon('fa5s.bookmark'), "")
+        self.profiles_menu = self.menu_bar.addMenu(qta.icon('fa5s.bookmark', color='#38bdf8'), "")
         self.profiles_menu.addAction(self.save_profile_action)
         self.profiles_menu.addAction(self.manage_profiles_action)
         self.profiles_menu.addSeparator()
 
     def _create_tool_bar(self):
         tool_bar = self.addToolBar("Main Toolbar")
+        tool_bar.setMovable(False)
+        tool_bar.setStyleSheet("background-color: #334155; border-bottom: 1px solid #475569; spacing: 10px; padding: 5px;")
         tool_bar.setToolButtonStyle(Qt.ToolButtonStyle.ToolButtonTextBesideIcon)
-        tool_bar.addAction(self.run_action)
-        tool_bar.addAction(self.cancel_action)
-        tool_bar.addSeparator()
+        
+        # We have big buttons now, but keep toolbar for shortcuts
+        tool_bar.addAction(self.open_dest_action)
         tool_bar.addAction(self.manage_cat_action)
         tool_bar.addAction(self.undo_action)
         
     def _create_status_bar(self):
         self.status_bar = self.statusBar()
+        self.status_bar.setStyleSheet("background-color: #1e293b; color: #94a3b8;")
         self.lbl_status = QLabel()
         self.progress = QProgressBar()
         self.progress.setVisible(False)
+        self.progress.setFixedWidth(200)
         self.status_bar.addWidget(self.lbl_status, 1)
         self.status_bar.addPermanentWidget(self.progress)
     
@@ -500,6 +697,7 @@ class FileOrganizerGUI(QMainWindow):
         if not item:
             return
         menu = QMenu()
+        menu.setStyleSheet("background-color: #334155; color: white;")
         open_file_action = menu.addAction(self.tr.t("open_file"))
         open_folder_action = menu.addAction(self.tr.t("open_folder"))
         action = menu.exec(self.table_view.mapToGlobal(pos))
@@ -526,8 +724,6 @@ class FileOrganizerGUI(QMainWindow):
         self.save_profile_action.triggered.connect(self.save_profile)
         self.manage_profiles_action.triggered.connect(self.manage_profiles)
         self.schedule_action.triggered.connect(self.show_schedule_info)
-        self.light_theme_action.triggered.connect(lambda: self._apply_theme("light"))
-        self.dark_theme_action.triggered.connect(lambda: self._apply_theme("dark"))
 
     @Slot()
     def change_lang(self):
@@ -556,9 +752,8 @@ class FileOrganizerGUI(QMainWindow):
         self.tabs.setTabText(1, self.tr.t("results"))
         self.table_view.setHorizontalHeaderLabels([self.tr.t("original_file"), self.tr.t("new_path"), self.tr.t("status")])
         self.run_action.setText(self.tr.t("run"))
-        self.run_action.setToolTip(self.tr.t("run_tooltip"))
+        self.btn_run_big.setText(" " + self.tr.t("run"))
         self.cancel_action.setText(self.tr.t("cancel"))
-        self.cancel_action.setToolTip(self.tr.t("cancel_tooltip"))
         self.open_dest_action.setText(self.tr.t("open_dest"))
         self.manage_cat_action.setText(self.tr.t("manage_categories"))
         self.undo_action.setText(self.tr.t("undo"))
@@ -566,31 +761,30 @@ class FileOrganizerGUI(QMainWindow):
         self.file_menu.setTitle(self.tr.t("file_menu"))
         self.edit_menu.setTitle(self.tr.t("edit_menu"))
         self.view_menu.setTitle(self.tr.t("view_menu"))
-        self.view_menu.actions()[0].setText(self.tr.t("theme"))
-        self.light_theme_action.setText(self.tr.t("light"))
-        self.dark_theme_action.setText(self.tr.t("dark"))
         self.profiles_menu.setTitle(self.tr.t("profiles_menu"))
         self.save_profile_action.setText(self.tr.t("save_profile"))
         self.manage_profiles_action.setText(self.tr.t("manage_profiles"))
         self.schedule_action.setText(self.tr.t("schedule"))
         self.lbl_status.setText(self.tr.t("ready"))
         self._update_profiles_menu()
+        
+        # Update alignment for Arabic
+        if lang == "ar":
+            self.setLayoutDirection(Qt.LayoutDirection.RightToLeft)
+        else:
+            self.setLayoutDirection(Qt.LayoutDirection.LeftToRight)
 
     def set_controls_enabled(self, enabled):
         self.run_action.setEnabled(enabled)
+        self.btn_run_big.setEnabled(enabled)
+        
+        # Toggle Cancel button state
         self.cancel_action.setEnabled(not enabled and self.organizer_worker is not None and self.organizer_worker.isRunning())
+        self.btn_cancel_big.setEnabled(not enabled and self.organizer_worker is not None and self.organizer_worker.isRunning())
+        
         for group in self.centralWidget().findChildren(QGroupBox):
             group.setEnabled(enabled)
         self.menu_bar.setEnabled(enabled)
-
-    def _apply_theme(self, theme):
-        import qdarktheme
-        app.setStyleSheet(qdarktheme.load_stylesheet(theme) if theme == "dark" else "")
-        self.current_theme = theme
-        if theme == "dark":
-            self.dark_theme_action.setChecked(True)
-        else:
-            self.light_theme_action.setChecked(True)
 
     @Slot(str, str, str, str)
     def on_result_logged(self, src_path, dest_path, display_name, status):
@@ -598,15 +792,20 @@ class FileOrganizerGUI(QMainWindow):
         self.table_view.insertRow(row)
         item_name = QTableWidgetItem(display_name)
         item_name.setData(Qt.UserRole, src_path)
+        item_name.setForeground(QColor("#e2e8f0"))
+        
         item_dest = QTableWidgetItem(dest_path if status == "Success" else "N/A")
         item_dest.setData(Qt.UserRole, dest_path)
+        item_dest.setForeground(QColor("#94a3b8"))
+        
         status_item = QTableWidgetItem(status)
         if status == "Success":
-            status_item.setBackground(QColor("#d4edda"))
+            status_item.setForeground(QColor("#10b981")) # Green
         elif status == "Failed":
-            status_item.setBackground(QColor("#f8d7da"))
+            status_item.setForeground(QColor("#ef4444")) # Red
         elif status == "Skipped":
-            status_item.setBackground(QColor("#fff3cd"))
+            status_item.setForeground(QColor("#fbbf24")) # Yellow/Orange
+            
         self.table_view.setItem(row, 0, item_name)
         self.table_view.setItem(row, 1, item_dest)
         self.table_view.setItem(row, 2, status_item)
@@ -686,14 +885,12 @@ class FileOrganizerGUI(QMainWindow):
         try:
             settings = self._get_current_settings_dict()
             settings["lang"] = self.cmb_lang.currentText()
-            settings["theme"] = self.current_theme
             with open(SETTINGS_FILE, 'w', encoding='utf-8') as f:
                 json.dump(settings, f)
         except Exception as e:
             print(f"Could not save settings: {e}")
     
     def load_settings(self):
-        self.current_theme = "light"
         if not SETTINGS_FILE.exists():
             self.chk_recursive.setChecked(True)
             return
@@ -702,7 +899,6 @@ class FileOrganizerGUI(QMainWindow):
                 s = json.load(f)
             self._apply_settings_dict(s)
             self.cmb_lang.setCurrentText(s.get("lang", "en"))
-            self._apply_theme(s.get("theme", "light"))
         except Exception as e:
             print(f"Could not load settings: {e}")
     
@@ -843,6 +1039,11 @@ class FileOrganizerGUI(QMainWindow):
 
 if __name__ == "__main__":
     app = QApplication(sys.argv)
+    
+    # Set default font for the whole app
+    font = QFont("Segoe UI", 10)
+    app.setFont(font)
+    
     window = FileOrganizerGUI()
     window.show()
     sys.exit(app.exec())
